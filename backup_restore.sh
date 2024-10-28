@@ -14,14 +14,14 @@ configure_dirs() {
 
     case $backup_opcao in
         1)
-            backup_path="$(pwd)"
+            backup_path="$(pwd)/backup/"
             ;;
         2)
             read -p "Digite o caminho completo para o diretório de backup: " backup_path
             ;;
         *)
             echo "Opção inválida. Usando diretório padrão."
-            backup_path="$(pwd)"
+            backup_path="$(pwd)/backup"
             ;;
     esac
 
@@ -33,25 +33,26 @@ configure_dirs() {
 
     case $restore_opcao in
         1)
-            restore_path="$(pwd)"
+            restore_path="$(pwd)/backup"
             ;;
         2)
-            read -p "Digite o caminho completo onde está o arquivo backup.tar.xz: " restore_path
+            read -p "Digite o caminho completo da pasta onde está o arquivo backup.tar.xz: " restore_path
             ;;
         *)
             echo "Opção inválida. Usando diretório padrão."
-            restore_path="$(pwd)"
+            restore_path="$(pwd)/backup"
             ;;
     esac
 
-    mkdir -p "$backup_path/backup"
+    mkdir -p "$backup_path"
+    mkdir -p "$restore_path"
     
-    echo "BACKUP_DIR=$backup_path/backup" > "$CONFIG_FILE"
+    echo "BACKUP_DIR=$backup_path" > "$CONFIG_FILE"
     echo "RESTORE_DIR=$restore_path" >> "$CONFIG_FILE"
     
     echo
     echo "Configurações salvas com sucesso!"
-    echo "Diretório de backup: $backup_path/backup"
+    echo "Diretório de backup: $backup_path"
     echo "Diretório de restauração: $restore_path"
     echo
 }
@@ -70,63 +71,60 @@ backup() {
     echo "Iniciando backup..."
     echo "==================="
 
-    TEMP_DIR="$BACKUP_DIR/temp"
+    TEMP_DIR="$BACKUP_DIR/tempfiles"
+    TEMP_TAR_DIR="$BACKUP_DIR/tempTarXz"
 
     mkdir -p "$BACKUP_DIR"
     mkdir -p "$TEMP_DIR"
+    mkdir -p "$TEMP_TAR_DIR"
 
     echo "Compactando dotfiles..."
     mkdir -p "$TEMP_DIR/dotfiles"
     cp ~/.zshrc ~/.bashrc "$TEMP_DIR/dotfiles"
-    tar -cJf "$BACKUP_DIR/dotfiles.tar.xz" -C "$TEMP_DIR" dotfiles
+    tar -cJf "$TEMP_TAR_DIR/dotfiles.tar.xz" -C "$TEMP_DIR" dotfiles
     rm -rf "$TEMP_DIR/dotfiles"
 
     echo "Compactando .config..."
     cp -r "$HOME/.config" "$TEMP_DIR"
-    tar -cJf "$BACKUP_DIR/config.tar.xz" -C "$TEMP_DIR" .config
+    tar -cJf "$TEMP_TAR_DIR/config.tar.xz" -C "$TEMP_DIR" .config
     rm -rf "$TEMP_DIR/.config"
 
     echo "Compactando tema Powerlevel10k..."
     cp -r "$HOME/.oh-my-zsh/custom/themes/powerlevel10k" "$TEMP_DIR"
-    tar -cJf "$BACKUP_DIR/powerlevel10k.tar.xz" -C "$TEMP_DIR" powerlevel10k
+    tar -cJf "$TEMP_TAR_DIR/powerlevel10k.tar.xz" -C "$TEMP_DIR" powerlevel10k
     rm -rf "$TEMP_DIR/powerlevel10k"
 
-    echo "Salvando repositórios e chaves..."
-    sudo cp /etc/apt/sources.list "$BACKUP_DIR/sources.list"
-    sudo cp -r /etc/apt/sources.list.d "$BACKUP_DIR/sources.list.d"
-    sudo cp -r /etc/apt/trusted.gpg.d "$BACKUP_DIR/trusted.gpg.d"
-
     echo "Salvando lista de pacotes APT..."
-    dpkg --get-selections > "$BACKUP_DIR/packages-list.txt"
+    dpkg --get-selections > "$TEMP_TAR_DIR/packages-list.txt"
 
     echo "Salvando lista de pacotes Snap e Flatpak..."
-    snap list > "$BACKUP_DIR/snap-list.txt"
-    flatpak list | grep -v "org.gtk.Gtk3theme.Zorin" > "$BACKUP_DIR/flatpak-list.txt"
+    snap list > "$TEMP_TAR_DIR/snap-list.txt"
+    flatpak list | grep -v "org.gtk.Gtk3theme.Zorin" > "$TEMP_TAR_DIR/flatpak-list.txt"
 
     echo "Compactando temas, fontes e extensões GNOME..."
     cp -r /usr/share/themes "$TEMP_DIR"
-    tar -cJf "$BACKUP_DIR/themes.tar.xz" -C "$TEMP_DIR" themes
+    tar -cJf "$TEMP_TAR_DIR/themes.tar.xz" -C "$TEMP_DIR" themes
     rm -rf "$TEMP_DIR/themes"
 
     cp -r /usr/share/icons "$TEMP_DIR"
-    tar -cJf "$BACKUP_DIR/icons.tar.xz" -C "$TEMP_DIR" icons
+    tar -cJf "$TEMP_TAR_DIR/icons.tar.xz" -C "$TEMP_DIR" icons
     rm -rf "$TEMP_DIR/icons"
 
     cp -r "$HOME/.local/share/fonts" "$TEMP_DIR"
-    tar -cJf "$BACKUP_DIR/fonts.tar.xz" -C "$TEMP_DIR" fonts
+    tar -cJf "$TEMP_TAR_DIR/fonts.tar.xz" -C "$TEMP_DIR" fonts
     rm -rf "$TEMP_DIR/fonts"
 
     cp -r "$HOME/.local/share/gnome-shell/extensions" "$TEMP_DIR/gnome-extensions-user"
-    tar -cJf "$BACKUP_DIR/gnome-extensions-user.tar.xz" -C "$TEMP_DIR" gnome-extensions-user
+    tar -cJf "$TEMP_TAR_DIR/gnome-extensions-user.tar.xz" -C "$TEMP_DIR" gnome-extensions-user
     rm -rf "$TEMP_DIR/gnome-extensions-user"
 
     echo "Salvando configurações do GNOME Extensions..."
-    dconf dump /org/gnome/shell/extensions/ > "$BACKUP_DIR/gnome-extensions-settings.dconf"
+    dconf dump /org/gnome/shell/extensions/ > "$TEMP_TAR_DIR/gnome-extensions-settings.dconf"
 
-    tar -cJf backup.tar.xz -C "$BACKUP_DIR" .
+    cd "$TEMP_TAR_DIR" && tar -cJf "$BACKUP_DIR/backup.tar.xz" *
 
-    sudo rm -rf "$TEMP_DIR"
-    sudo rm -rf "$BACKUP_DIR"
+    rm -rf "$TEMP_DIR"
+    rm -rf "$TEMP_TAR_DIR"
     
     echo "Backup concluído! Arquivos salvos e compactados em backup.tar.xz"
 }
@@ -144,7 +142,7 @@ restore() {
     TEMP_RESTORE_DIR="$RESTORE_DIR/temp_restore"
     mkdir -p "$TEMP_RESTORE_DIR"
     
-    tar -xJf "$RESTORE_DIR/backup.tar.xz" -C "$TEMP_RESTORE_DIR"
+    cd "$TEMP_RESTORE_DIR" && tar -xJf "$RESTORE_DIR/backup.tar.xz"
     
     BACKUP_DIR="$TEMP_RESTORE_DIR"
 
