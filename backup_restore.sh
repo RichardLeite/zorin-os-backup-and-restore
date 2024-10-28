@@ -96,7 +96,7 @@ backup() {
 
     echo "Salvando lista de pacotes Snap e Flatpak..."
     snap list > "$BACKUP_DIR/snap-list.txt"
-    flatpak list > "$BACKUP_DIR/flatpak-list.txt"
+    flatpak list | grep -v "org.gtk.Gtk3theme.Zorin" > "$BACKUP_DIR/flatpak-list.txt"
 
     echo "Compactando temas, fontes e extensões GNOME..."
     cp -r /usr/share/themes "$TEMP_DIR"
@@ -114,10 +114,6 @@ backup() {
     cp -r "$HOME/.local/share/gnome-shell/extensions" "$TEMP_DIR/gnome-extensions-user"
     tar -cJf "$BACKUP_DIR/gnome-extensions-user.tar.xz" -C "$TEMP_DIR" gnome-extensions-user
     rm -rf "$TEMP_DIR/gnome-extensions-user"
-
-    cp -r /usr/share/gnome-shell/extensions "$TEMP_DIR/gnome-extensions-system"
-    tar -cJf "$BACKUP_DIR/gnome-extensions-system.tar.xz" -C "$TEMP_DIR" gnome-extensions-system
-    rm -rf "$TEMP_DIR/gnome-extensions-system"
 
     echo "Salvando configurações do GNOME Extensions..."
     dconf dump /org/gnome/shell/extensions/ > "$BACKUP_DIR/gnome-extensions-settings.dconf"
@@ -159,26 +155,34 @@ restore() {
 
     if [[ -f "$BACKUP_DIR/packages-list.txt" ]]; then
         echo "Restaurando pacotes APT..."
-        sudo dpkg --set-selections < "$BACKUP_DIR/packages-list.txt" && sudo apt-get dselect-upgrade
+        sudo apt-get update
+        cat "$BACKUP_DIR/packages-list.txt" | grep -v "^#" | cut -f1 | xargs sudo apt-get install -y
     fi
 
     if [[ -f "$BACKUP_DIR/snap-list.txt" ]]; then
         echo "Restaurando pacotes Snap..."
-        xargs -a "$BACKUP_DIR/snap-list.txt" -I {} sudo snap install {}
-    fi
-    if [[ -f "$BACKUP_DIR/flatpak-list.txt" ]]; then
-        echo "Restaurando pacotes Flatpak..."
-        xargs -a "$BACKUP_DIR/flatpak-list.txt" -I {} flatpak install flathub {}
+        sed '1d' "$BACKUP_DIR/snap-list.txt" | awk '{print $1}' | xargs -I {} sudo snap install {}
     fi
 
-    echo "Restaurando temas, fontes e extensões GNOME..."
+    if [[ -f "$BACKUP_DIR/flatpak-list.txt" ]]; then
+        echo "Restaurando pacotes Flatpak..."
+        sed '1d' "$BACKUP_DIR/flatpak-list.txt" | awk '{print $2}' | xargs -I {} flatpak install -y flathub {}
+    fi
+
+    echo "Restaurando temas, icones e fontes..."
     sudo tar -xJf "$BACKUP_DIR/themes.tar.xz" -C /usr/share
     sudo tar -xJf "$BACKUP_DIR/icons.tar.xz" -C /usr/share
     tar -xJf "$BACKUP_DIR/fonts.tar.xz" -C "$HOME/.local/share"
-    tar -xJf "$BACKUP_DIR/gnome-extensions-user.tar.xz" -C "$HOME/.local/share/gnome-shell"
-    sudo tar -xJf "$BACKUP_DIR/gnome-extensions-system.tar.xz" -C /usr/share/gnome-shell
+
+    echo "Instalando ZSH e dependências..."
+    sudo apt-get install -y zsh
+    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+
+    echo "Instalando Gerenciador de Extensões GNOME..."
+    sudo apt-get install -y gnome-shell-extensions gnome-tweaks
 
     echo "Restaurando configurações do GNOME Extensions..."
+    tar -xJf "$BACKUP_DIR/gnome-extensions-user.tar.xz" -C "$HOME/.local/share/gnome-shell"
     dconf load /org/gnome/shell/extensions/ < "$BACKUP_DIR/gnome-extensions-settings.dconf"
 
     rm -rf "$TEMP_RESTORE_DIR"
