@@ -91,6 +91,11 @@ backup() {
     tar -cJf "$BACKUP_DIR/powerlevel10k.tar.xz" -C "$TEMP_DIR" powerlevel10k
     rm -rf "$TEMP_DIR/powerlevel10k"
 
+    echo "Salvando repositórios e chaves..."
+    sudo cp /etc/apt/sources.list "$BACKUP_DIR/sources.list"
+    sudo cp -r /etc/apt/sources.list.d "$BACKUP_DIR/sources.list.d"
+    sudo cp -r /etc/apt/trusted.gpg.d "$BACKUP_DIR/trusted.gpg.d"
+
     echo "Salvando lista de pacotes APT..."
     dpkg --get-selections > "$BACKUP_DIR/packages-list.txt"
 
@@ -136,7 +141,7 @@ restore() {
         return 1
     fi
 
-    TEMP_RESTORE_DIR="./temp_restore"
+    TEMP_RESTORE_DIR="$RESTORE_DIR/temp_restore"
     mkdir -p "$TEMP_RESTORE_DIR"
     
     tar -xJf "$RESTORE_DIR/backup.tar.xz" -C "$TEMP_RESTORE_DIR"
@@ -152,6 +157,12 @@ restore() {
     echo "Restaurando tema Powerlevel10k..."
     mkdir -p ~/.oh-my-zsh/custom/themes
     tar -xJf "$BACKUP_DIR/powerlevel10k.tar.xz" -C ~/.oh-my-zsh/custom/themes
+
+    echo "Restaurando repositórios e chaves..."
+    sudo cp "$BACKUP_DIR/sources.list" /etc/apt/sources.list
+    sudo cp -r "$BACKUP_DIR/sources.list.d/"* /etc/apt/sources.list.d/
+    sudo cp -r "$BACKUP_DIR/trusted.gpg.d/"* /etc/apt/trusted.gpg.d/
+    sudo apt-get update
 
     if [[ -f "$BACKUP_DIR/packages-list.txt" ]]; then
         echo "Restaurando pacotes APT..."
