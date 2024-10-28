@@ -22,7 +22,7 @@ chmod +x backup_restore.sh
 Para executar o script, basta executar o comando:
 
 ```bash
-sudo ./backup_restore.sh
+./backup_restore.sh
 ```
 
 ## Opções Disponíveis
