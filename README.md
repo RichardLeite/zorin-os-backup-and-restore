@@ -55,7 +55,7 @@ Para executar o script, basta executar o comando:
   - [x] Snap
   - [x] Flatpak
 
-### 3. Restore:
+### 3. Restore
 
 - Restauração completa das configurações
   - [x] Requer arquivo backup.tar.xz no diretório configurado
