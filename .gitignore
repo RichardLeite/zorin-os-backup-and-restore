@@ -1,0 +1,12 @@
+# Arquivos de configuração
+.conf
+
+# Diretórios temporários e de backup
+temp/
+temp_restore/
+backup/
+backup.tar.xz
+
+# Outros arquivos do sistema
+.DS_Store
+*.log

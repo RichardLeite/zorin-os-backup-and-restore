@@ -1,12 +1,38 @@
 #!/bin/bash
 
-# Diretório do backup
-BACKUP_DIR="./backup"
-TEMP_DIR="$BACKUP_DIR/temp"
+CONFIG_FILE=".conf"
+
+configure_backup_dir() {
+    echo
+    echo "Configuração do Diretório de Backup"
+    echo "=================================="
+    read -p "Digite o caminho completo para o diretório de backup: " backup_path
+    
+    mkdir -p "$backup_path/backup"
+    echo "BACKUP_DIR=$backup_path" > "$CONFIG_FILE"
+    
+    echo "Configuração salva com sucesso!"
+    echo
+}
+
+load_config() {
+    if [ -f "$CONFIG_FILE" ]; then
+        source "$CONFIG_FILE"
+    else
+        echo "Configuração não encontrada!"
+        configure_backup_dir
+    fi
+}
 
 # Função de Backup
 backup() {
+    echo
     echo "Iniciando backup..."
+    echo "==================="
+
+    echo "$BACKUP_DIR"
+
+    TEMP_DIR="$BACKUP_DIR/temp"
 
     # Cria o diretório de backup e o temporário, se não existirem
     mkdir -p "$BACKUP_DIR"
@@ -66,15 +92,31 @@ backup() {
     echo "Salvando configurações do GNOME Extensions..."
     dconf dump /org/gnome/shell/extensions/ > "$BACKUP_DIR/gnome-extensions-settings.dconf"
 
+    # Criar arquivo único de backup
+    tar -cJf backup.tar.xz -C "$BACKUP_DIR" .
+
     # Removendo diretório temporário após o backup
     rm -rf "$TEMP_DIR"
+    rm -rf "$BACKUP_DIR"
     
-    echo "Backup concluído! Arquivos salvos e compactados em $BACKUP_DIR."
+    echo "Backup concluído! Arquivos salvos e compactados em backup.tar.xz"
 }
 
 # Função de Restauração
 restore() {
+    echo
     echo "Iniciando restauração..."
+    echo "========================"
+
+    # Criar diretório temporário
+    TEMP_RESTORE_DIR="./temp_restore"
+    mkdir -p "$TEMP_RESTORE_DIR"
+    
+    # Extrair backup principal
+    tar -xJf ./backup.tar.xz -C "$TEMP_RESTORE_DIR"
+    
+    # Continuar com a restauração usando os arquivos do diretório temporário
+    BACKUP_DIR="$TEMP_RESTORE_DIR"
 
     # Restauração dos dotfiles
     echo "Restaurando dotfiles..."
@@ -117,15 +159,60 @@ restore() {
     echo "Restaurando configurações do GNOME Extensions..."
     dconf load /org/gnome/shell/extensions/ < "$BACKUP_DIR/gnome-extensions-settings.dconf"
 
+    # Limpar diretório temporário ao finalizar
+    rm -rf "$TEMP_RESTORE_DIR"
+    
     echo "Restauração concluída!"
 }
 
-# Verificação do modo
-if [[ $1 == "backup" ]]; then
-    backup
-elif [[ $1 == "restore" ]]; then
-    restore
-else
-    echo "Uso: $0 {backup|restore}"
-    exit 1
-fi
+# Menu de seleção
+main() {
+    # Verificação inicial do arquivo de configuração
+    if [ ! -f "$CONFIG_FILE" ]; then
+        echo
+        echo "Primeira execução detectada - Configuração inicial necessária"
+        echo "========================================================"
+        configure_backup_dir
+    fi
+
+    # Menu principal
+    while true; do
+        echo
+        echo "Bem-vindo ao Zorin OS Backup & Restore"
+        echo "======================================"
+        echo
+
+        PS3="Selecione uma opção: "
+        options=("Configuração" "Backup" "Restore" "Sair")
+
+        select opt in "${options[@]}"
+        do
+            case $opt in
+                "Configuração")
+                    configure_backup_dir
+                    break
+                    ;;
+                "Backup")
+                    load_config
+                    backup
+                    exit 0
+                    ;;
+                "Restore")
+                    load_config
+                    restore
+                    exit 0
+                    ;;
+                "Sair")
+                    echo "Programa finalizado."
+                    exit 0
+                    ;;
+                *) 
+                    echo "Opção inválida. Selecione um número entre 1-4"
+                    ;;
+            esac
+        done
+    done
+}
+
+# Iniciar o programa
+main
