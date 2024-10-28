@@ -125,8 +125,8 @@ backup() {
 
     tar -cJf backup.tar.xz -C "$BACKUP_DIR" .
 
-    rm -rf "$TEMP_DIR"
-    rm -rf "$BACKUP_DIR"
+    sudo rm -rf "$TEMP_DIR"
+    sudo rm -rf "$BACKUP_DIR"
     
     echo "Backup concluído! Arquivos salvos e compactados em backup.tar.xz"
 }
@@ -196,7 +196,7 @@ restore() {
     tar -xJf "$BACKUP_DIR/gnome-extensions-user.tar.xz" -C "$HOME/.local/share/gnome-shell"
     dconf load /org/gnome/shell/extensions/ < "$BACKUP_DIR/gnome-extensions-settings.dconf"
 
-    rm -rf "$TEMP_RESTORE_DIR"
+    sudo rm -rf "$TEMP_RESTORE_DIR"
     
     echo "Restauração concluída!"
 }
