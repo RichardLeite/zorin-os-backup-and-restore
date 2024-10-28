@@ -6,14 +6,31 @@ configure_backup_dir() {
     echo
     echo "Configuração do Diretório de Backup"
     echo "=================================="
-    read -p "Digite o caminho completo para o diretório de backup: " backup_path
+    echo "1) Padrão (pasta atual)"
+    echo "2) Personalizado"
+    read -p "Escolha uma opção (1-2): " opcao
+
+    case $opcao in
+        1)
+            backup_path="$(pwd)"
+            ;;
+        2)
+            read -p "Digite o caminho completo para o diretório de backup: " backup_path
+            ;;
+        *)
+            echo "Opção inválida. Usando diretório padrão."
+            backup_path="$(pwd)"
+            ;;
+    esac
     
     mkdir -p "$backup_path/backup"
-    echo "BACKUP_DIR=$backup_path" > "$CONFIG_FILE"
+    echo "BACKUP_DIR=$backup_path/backup" > "$CONFIG_FILE"
     
     echo "Configuração salva com sucesso!"
+    echo "Diretório configurado: $backup_path/backup"
     echo
 }
+
 
 load_config() {
     if [ -f "$CONFIG_FILE" ]; then
